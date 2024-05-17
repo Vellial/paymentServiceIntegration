@@ -23,24 +23,12 @@ public class PaymentServiceController {
 
     @GetMapping("/getAllProducts")
     public ProductResponseDto getProductsByProductService() {
-        return new ProductResponseDto("Список счетов пользователя",
-                productIntegrationService.callAllProductsMethod("/users/1"));
+        return productIntegrationService.callAllProductsMethod("/users/1");
     }
 
     @PostMapping("/execute")
     public ProductResponseDto executePayment(@RequestBody PaymentDataDto paymentDataDto) {
-        Double paymentSum = paymentDataDto.getSum(); // сумма, которая нужна для оплаты заказа
-        Long paymentId = paymentDataDto.getProductId(); // id счёта, с которого будет списана оплата
-
-        UserProductDto product = productIntegrationService.callProductMethod("/products/" + paymentId);
-
-        Double realBalance = product.balance();
-
-        if (realBalance < paymentSum) {
-            return new ProductResponseDto("Оплата невозможна: на балансе недостаточно средств", realBalance);
-        }
-
-        return new ProductResponseDto("Результат оплаты", realBalance - paymentSum);
+        return productIntegrationService.callProductMethod("/products/" + paymentDataDto.getProductId(), paymentDataDto);
     }
 
 }

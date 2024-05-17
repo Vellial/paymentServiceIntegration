@@ -1,6 +1,8 @@
 package com.example.paymentsService.services;
 
 import com.example.paymentsService.configs.props.ExecutorProperties;
+import com.example.paymentsService.dto.PaymentDataDto;
+import com.example.paymentsService.dto.ProductResponseDto;
 import com.example.paymentsService.dto.UserProductDto;
 import com.example.paymentsService.dto.UserProductsList;
 import org.springframework.http.ResponseEntity;
@@ -19,17 +21,38 @@ public class ProductIntegrationService {
         this.properties = properties;
     }
 
-    public UserProductsList callAllProductsMethod(String integrationMethodName) {
+    public ProductResponseDto callAllProductsMethod(String integrationMethodName) {
         String productsUrl = properties.getProductsExecutorClient().url() + integrationMethodName; // id пользователя
         ResponseEntity<UserProductsList> response = executorClient.getForEntity(productsUrl, UserProductsList.class);
 
-        return response.getBody();
+        UserProductsList productsList = response.getBody();
+
+        if (productsList == null || productsList.getUserProductDtoList().isEmpty()) {
+            return new ProductResponseDto("Счета для пользователя не найдены", productsList);
+        }
+
+        return new ProductResponseDto("Список счетов пользователя", response.getBody());
     }
 
-    public UserProductDto callProductMethod(String integrationMethodName) {
+    public ProductResponseDto callProductMethod(String integrationMethodName, PaymentDataDto paymentDataDto) {
+        Double paymentSum = paymentDataDto.getSum(); // сумма, которая нужна для оплаты заказа
+        Long paymentId = paymentDataDto.getProductId(); // id счёта, с которого будет списана оплата
+
         String productsUrl = properties.getProductsExecutorClient().url() + integrationMethodName; // id пользователя
         ResponseEntity<UserProductDto> response = executorClient.getForEntity(productsUrl, UserProductDto.class);
 
-        return response.getBody();
+        UserProductDto product = response.getBody();
+
+        if (product == null) {
+            return new ProductResponseDto("Оплата невозможна: счёт не найден", null);
+        }
+
+        Double realBalance = product.balance();
+
+        if (realBalance < paymentSum) {
+            return new ProductResponseDto("Оплата невозможна: на балансе недостаточно средств", realBalance);
+        }
+
+        return new ProductResponseDto("Результат оплаты", realBalance - paymentSum);
     }
 }
